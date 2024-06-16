@@ -6,29 +6,21 @@ import java.util.*;
 
 public class Utility {
 
-    private static final String LINE = "--------------------";
-    private Set<Object> visited;
+    private static final String LINE = "----------------------";
+    private static final String SPACE = "\t";
 
     public void analyze(Object obj) throws IllegalArgumentException, IllegalAccessException {
-        visited = new HashSet<>();
         analyze(obj, 0);
-        visited.clear();
     }
 
     private void analyze(Object obj, int level) throws IllegalArgumentException, IllegalAccessException {
-//        if(visited.contains(obj)){
-//            printRepeatedClass(obj, level);
-//            return;
-//        }
-
-        visited.add(obj);
         Class<?> objClass = obj.getClass();
 
         printClassTitle(obj, level);
         Field[] fields = objClass.getDeclaredFields();
 
         for(Field field : fields) {
-            field.setAccessible(true);
+           // field.setAccessible(true);
             String fieldName = field.getName();
             Object fieldValue = field.get(obj);
 
@@ -39,7 +31,8 @@ public class Utility {
             }else if(isArray(field)) {
                 analyzeArray(level, fieldName, fieldValue);
             }else { //struct
-                analyze(fieldValue, level++);
+                System.out.print(fieldName + " = ");
+                analyze(fieldValue, ++level);
             }
         }
     }
@@ -48,7 +41,7 @@ public class Utility {
         if(fieldValue == null)
             printField(fieldName, null, level);
         else {
-            System.out.println(level+"_"+leftPadding(fieldName + " = ", level));
+            System.out.print(leftPadding(fieldName + " = ", level));
             analyzeCollection(fieldValue, level);
         }
     }
@@ -59,17 +52,17 @@ public class Utility {
         else if(isPrimitiveArray(fieldValue))
             printField(fieldName, getArrayValue(fieldValue), level);
         else {
-            System.out.println(leftPadding(level+"_"+fieldName + " = ", level));
+            System.out.print(leftPadding(fieldName + " = ", level));
             analyzeNonPrimitiveArray(fieldValue, level);
         }
     }
 
     private void printField(String fieldName, String fieldValue, int level) {
-        System.out.println(leftPadding(level+"_"+fieldName + " = " + fieldValue, level));
+        System.out.println(leftPadding(fieldName + " = " + fieldValue, level));
     }
 
     private String leftPadding(String input, int length) {
-        return "\t".repeat(length) + input;
+        return SPACE.repeat(length) + input;
     }
 
     private String getArrayValue(Object array) {
@@ -83,6 +76,7 @@ public class Utility {
     @SuppressWarnings("unchecked")
     private void analyzeCollection(Object obj, int level) throws IllegalAccessException {
         level++;
+
         for (Object o : (Collection<Object>) obj)
             if(o != null)
                 analyze(o, level);
@@ -139,14 +133,17 @@ public class Utility {
         Name n = new Name();
         n.firstName = "John";
         n.lastName = "Doe";
+        n.salary = 0;
 
         Name n1 = new Name();
         n1.firstName = "John1";
         n1.lastName = "Doe1";
+        n1.salary = 1;
 
         Name n2 = new Name();
         n2.firstName = "John2";
         n2.lastName = "Doe2";
+        n2.salary = 2;
 
         Name n3 = new Name();
         n3.firstName = "John3";
@@ -157,7 +154,7 @@ public class Utility {
         n1.arrayOfThings = new Object[]{n3};
        // n.arrayOfThings = new Object[]{"ssss", "ddd"};
 
-       // n.arrayOfInts = new int[]{1,2};
+        n.arrayOfInts = new int[]{1,2};
 
         Person p = new Person();
         p.age = 55;
@@ -180,6 +177,7 @@ public class Utility {
         public List<?> children;
         public Object[] arrayOfThings;
         public int[] arrayOfInts;
+        public long salary;
     }
     
     private static class Person {
