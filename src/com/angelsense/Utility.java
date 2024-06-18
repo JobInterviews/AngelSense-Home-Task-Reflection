@@ -3,70 +3,126 @@ package com.angelsense;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Utility {
-
+    private static final Logger logger = Logger.getLogger(Utility.class.getName());
     private static final String LINE = "----------------------";
-    private static final String SPACE = "\t";
+    private static final String INDENT_STRING = "\t";
+    private static final String EQUALS = " = ";
+    private static final String CLASS_TITLE = "Object of Class ";
+    private static final String NEW_LINE = "\n";
+    private static final String QUOTATION_MARK = "\"";
 
-    public void analyze(Object obj) throws IllegalArgumentException, IllegalAccessException {
+    private StringBuilder result;
+
+    public StringBuilder analyze(Struct obj) throws IllegalArgumentException, IllegalAccessException {
+        result = new StringBuilder();
         analyze(obj, 0);
+        return result;
     }
 
     private void analyze(Object obj, int level) throws IllegalArgumentException, IllegalAccessException {
-        Class<?> objClass = obj.getClass();
+        if(obj == null)
+            return;
 
+        Class<?> objClass = obj.getClass();
         printClassTitle(obj, level);
         Field[] fields = objClass.getDeclaredFields();
 
         for(Field field : fields) {
-           // field.setAccessible(true);
             String fieldName = field.getName();
             Object fieldValue = field.get(obj);
 
             if(isString(field) || isPrimitive(field)){
                 printField(fieldName, fieldValue+"", level);
             }else if(isCollection(field)) {
-                analyzeCollection(level, fieldName, fieldValue);
+                analyzeCollection(fieldName, fieldValue, level);
             }else if(isArray(field)) {
-                analyzeArray(level, fieldName, fieldValue);
+                analyzeArray(fieldName, fieldValue, level);
             }else { //struct
-                System.out.print(fieldName + " = ");
+                printField(fieldName, level);
                 analyze(fieldValue, ++level);
             }
         }
     }
 
-    private void analyzeCollection(int level, String fieldName, Object fieldValue) throws IllegalAccessException {
+    private void printClassTitle(Object obj, int level) {
+        result.append(NEW_LINE).append(leftPadding(CLASS_TITLE + QUOTATION_MARK + getName(obj) + QUOTATION_MARK, level)).append(NEW_LINE);
+        result.append(leftPadding(LINE, level)).append(NEW_LINE);
+        //System.out.println("\n" + leftPadding(CLASS_TITLE + " \"" + getName(obj) + "\"", level));
+        //System.out.println(leftPadding(LINE, level));
+    }
+
+    private boolean isString(Field field){
+        return String.class.isAssignableFrom(field.getType());
+    }
+
+    private boolean isPrimitive(Field field){
+        return field.getType().isPrimitive();
+    }
+
+    private boolean isCollection(Field field){
+        return Collection.class.isAssignableFrom(field.getType());
+    }
+
+    private boolean isArray(Field field) {
+        return field.getType().isArray();
+    }
+
+    private void analyzeCollection(String fieldName, Object fieldValue, int level) throws IllegalAccessException {
         if(fieldValue == null)
             printField(fieldName, null, level);
         else {
-            System.out.print(leftPadding(fieldName + " = ", level));
+            printField(fieldName, level);
             analyzeCollection(fieldValue, level);
         }
     }
 
-    private void analyzeArray(int level, String fieldName, Object fieldValue) throws IllegalAccessException {
+    private void analyzeCollection(Object collection, int level) throws IllegalAccessException {
+        level++;
+
+        for (Object o : (Collection<?>) collection)
+            if(o != null)
+                analyze(o, level);
+    }
+
+    private void analyzeArray(String fieldName, Object fieldValue, int level) throws IllegalAccessException {
         if(fieldValue == null)
             printField(fieldName, null, level);
         else if(isPrimitiveArray(fieldValue))
             printField(fieldName, getArrayValue(fieldValue), level);
         else {
-            System.out.print(leftPadding(fieldName + " = ", level));
-            analyzeNonPrimitiveArray(fieldValue, level);
+            printField(fieldName, level);
+            analyzeStructsArray(fieldValue, level);
         }
     }
 
+    private void printField(String fieldName, int level) {
+        result.append(leftPadding(fieldName + EQUALS, level));
+        //System.out.print(leftPadding(fieldName + EQUALS, level));
+    }
     private void printField(String fieldName, String fieldValue, int level) {
-        System.out.println(leftPadding(fieldName + " = " + fieldValue, level));
+        result.append(leftPadding(fieldName + EQUALS + fieldValue, level)).append(NEW_LINE);
+        //System.out.println(leftPadding(fieldName + EQUALS + fieldValue, level));
     }
 
     private String leftPadding(String input, int length) {
-        return SPACE.repeat(length) + input;
+        return INDENT_STRING.repeat(length) + input;
     }
 
     private String getArrayValue(Object array) {
         return Arrays.toString(toArray(array));
+    }
+
+    private Object[] toArray(Object array) {
+        int len = Array.getLength(array);
+        Object[] res = new Object[len];
+        for (int i = 0; i < len; i++)
+            res[i] = Array.get(array, i);
+
+        return res;
     }
 
     private boolean isPrimitiveArray(Object array) {
@@ -74,15 +130,7 @@ public class Utility {
     }
 
     @SuppressWarnings("unchecked")
-    private void analyzeCollection(Object obj, int level) throws IllegalAccessException {
-        level++;
-
-        for (Object o : (Collection<Object>) obj)
-            if(o != null)
-                analyze(o, level);
-    }
-
-    private void analyzeNonPrimitiveArray(Object array, int level) throws IllegalAccessException {
+    private void analyzeStructsArray(Object array, int level) throws IllegalAccessException {
         level++;
 
         for (Object o : (Object[]) array)
@@ -90,44 +138,16 @@ public class Utility {
                 analyze(o, level);
     }
 
-    private boolean isArray(Field field) {
-        return field.getType().isArray();
-    }
-
-    private void printClassTitle(Object obj, int level) {
-        System.out.println("\n" + leftPadding("Object of Class " + getName(obj), level));
-        System.out.println(leftPadding(LINE, level));
-    }
-
-    private void printRepeatedClass(Object obj, int level) {
-        System.out.println("\n" + leftPadding("Object of Class " + getName(obj), level) + " was printed before");
-        System.out.println(leftPadding(LINE, level));
-    }
+//    private void printRepeatedClass(Object obj, int level) {
+//        System.out.println("\n" + leftPadding("Object of Class " + getName(obj), level) + " was printed before");
+//        System.out.println(leftPadding(LINE, level));
+//    }
 
     private String getName(Object obj) {
         return obj.getClass().getSimpleName();
     }
 
-    private boolean isString(Field field){
-        return String.class.isAssignableFrom(field.getType());
-    }
 
-    private boolean isCollection(Field field){
-        return Collection.class.isAssignableFrom(field.getType());
-    }
-
-    private boolean isPrimitive(Field field){
-        return field.getType().isPrimitive();
-    }
-
-    private Object[] toArray(Object obj) {
-        int len = Array.getLength(obj);
-        Object[] res = new Object[len];
-        for (int i = 0; i < len; i++)
-            res[i] = Array.get(obj, i);
-
-        return res;
-    }
 
     public static void main(String[] args) {
         Name n = new Name();
@@ -149,12 +169,17 @@ public class Utility {
         n3.firstName = "John3";
         n3.lastName = "Doe3";
 
-        n.children = List.of(n1, n2);
-        n.arrayOfThings = new Object[]{n1, n2};
-        n1.arrayOfThings = new Object[]{n3};
-       // n.arrayOfThings = new Object[]{"ssss", "ddd"};
+        Name n4 = new Name();
+        n4.firstName = "John4";
+        n4.lastName = "Doe4";
 
-        n.arrayOfInts = new int[]{1,2};
+        n.children = List.of(n1, n2);
+        n.arrayOfStructs = new Object[]{n1, n2};
+        n1.arrayOfStructs = new Object[]{n3};
+        n3.children = List.of(n4);
+
+
+        n.arrayOfPrimitives = new int[]{1,2};
 
         Person p = new Person();
         p.age = 55;
@@ -164,26 +189,23 @@ public class Utility {
         Utility utility  = new Utility();
 
         try {
-            utility.analyze(p);
+            System.out.println(utility.analyze(p));
         } catch (IllegalArgumentException | IllegalAccessException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.log(Level.SEVERE, null, e);
         }
     }
 
-    private static class Name {
+    private static class Name implements Struct{
         public String firstName;
         public String lastName;
         public List<?> children;
-        public Object[] arrayOfThings;
-        public int[] arrayOfInts;
+        public Object[] arrayOfStructs;
+        public int[] arrayOfPrimitives;
         public long salary;
     }
     
-    private static class Person {
+    private static class Person implements Struct{
         public int age;
         public Name name;
-
-        //private List childern = new ArrayList<>();
     }
 }
